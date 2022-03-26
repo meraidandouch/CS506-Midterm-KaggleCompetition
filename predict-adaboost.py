@@ -11,32 +11,29 @@ from imblearn.under_sampling import RandomUnderSampler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import AdaBoostClassifier
 
-#import imblearn
-#from imblearn.pipeline import Pipeline
-#from imblearn.over_sampling import RandomOverSampler
-
-def cv(train_x, train_y): 
-    scores = []
-    k_range = np.arange(1,21)
-    for i in range(1,21): 
-        print("KNN" + str(i))
-        KNN = KNeighborsClassifier(n_neighbors=i)
-
-        # X,y will automatically be divided into 10 parts, the scoring I will still use the accuracy
-        score = cross_val_score(KNN, train_x, train_y, cv=10, scoring='accuracy') #10 partions/fold cross validation
+def cv(x_train, y_train):
+    scores = [] 
+    n_trees = [10, 50, 100, 500, 1000, 1500]
+    for n in n_trees: 
+        print("Trees Conisdering:", n)
+        model = AdaBoostClassifier(n_estimators=n)
+        cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+        score = cross_val_score(model, x_train, y_train, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
         scores.append(score.mean())
-
     # plot to see clearly
-    plt.plot(k_range, scores)
-    plt.xlabel('Value of K for KNN')
+    plt.plot(n_trees, scores)
+    plt.xlabel('Value of MaxDepth for Decision Tree Classifier')
     plt.ylabel('Cross-Validated Accuracy')
     plt.show()
+
     max_value = max(scores)
     idx = scores.index(max_value)
-    print("Best accuracy score with max depth of: ", k_range[idx])
-    return k_range[idx]
+    print("Best accuracy score with max depth of: ", n_trees[idx])
+    return n_trees[idx]
 
 # Load files into DataFrames
 X_train = pd.read_csv("./data/X_train.csv")
@@ -50,10 +47,9 @@ X_train, X_test, Y_train, Y_test = train_test_split(
         random_state=0
     )
 
-# This is where you can do more feature selection
-X_train_processed = X_train.drop(columns=['Id', 'ProductId', 'UserId', 'Text', 'Summary', 'stemmed_summary', 'Date', 'Hour', 'Tier', 'all','an','and','as','at','be','best','better','but','classic','do','dvd','ever','film','for','from','get','good','have','in','is','it','just','like','love','more','movi','my','not','of','on','one','review','season','seri','show','so','star','stori','than','that','the','this','time','to','very','was','watch','what','with','you'])
-X_test_processed = X_test.drop(columns=['Id', 'ProductId', 'UserId', 'Text', 'Summary', 'stemmed_summary', 'Date', 'Hour', 'Score', 'Tier', 'all','an','and','as','at','be','best','better','but','classic','do','dvd','ever','film','for','from','get','good','have','in','is','it','just','like','love','more','movi','my','not','of','on','one','review','season','seri','show','so','star','stori','than','that','the','this','time','to','very','was','watch','what','with','you'])
-X_submission_processed = X_submission.drop(columns=['Id', 'ProductId', 'UserId', 'Text', 'Summary', 'stemmed_summary', 'Date', 'Hour', 'Score', 'Tier', 'all','an','and','as','at','be','best','better','but','classic','do','dvd','ever','film','for','from','get','good','have','in','is','it','just','like','love','more','movi','my','not','of','on','one','review','season','seri','show','so','star','stori','than','that','the','this','time','to','very','was','watch','what','with','you'])
+X_train_processed = X_train.drop(columns=['Id', 'ProductId', 'UserId', 'Text', 'Summary', 'stemmed_summary', 'Date', 'Hour', 'Tier', 'all','an','and','as','at','be','best','better','but','classic','do','dvd','ever','film','for','from','get','have','in','is','it','just','like','love','more','movi','my','not','of','on','one','review','season','seri','show','so','star','stori','than','that','the','this','time','to','very','was','watch','what','with','you'])
+X_test_processed = X_test.drop(columns=['Id', 'ProductId', 'UserId', 'Text', 'Summary', 'stemmed_summary', 'Date', 'Hour', 'Score', 'Tier', 'all','an','and','as','at','be','best','better','but','classic','do','dvd','ever','film','for','from','get','have','in','is','it','just','like','love','more','movi','my','not','of','on','one','review','season','seri','show','so','star','stori','than','that','the','this','time','to','very','was','watch','what','with','you'])
+X_submission_processed = X_submission.drop(columns=['Id', 'ProductId', 'UserId', 'Text', 'Summary', 'stemmed_summary', 'Date', 'Hour', 'Score', 'Tier', 'all','an','and','as','at','be','best','better','but','classic','do','dvd','ever','film','for','from','get','have','in','is','it','just','like','love','more','movi','my','not','of','on','one','review','season','seri','show','so','star','stori','than','that','the','this','time','to','very','was','watch','what','with','you'])
 
 #Under Sample the Training Set
 def under_sample(df, col_name): 
@@ -71,8 +67,12 @@ X_train_processed  = X_train_processed.drop(columns=['Score']) # drop score, don
 print(X_train_processed.head())
 
 # Get hyperparameter k CV Score and learn the model
-#k = cv(X_train_processed, y_train_processed)
-model = DecisionTreeClassifier(max_depth=9).fit(X_train_processed, y_train_processed)
+#n_trees = cv(X_train_processed, y_train_processed)
+model = AdaBoostClassifier(n_estimators=1500).fit(X_train_processed, y_train_processed)
+
+# Predict the reponse for the test dataset 
+y_predict = model.predict(X_test_processed)
+accuracy_score(y_predict, Y_test)
 
 # Predict the score using the model
 Y_test_predictions = model.predict(X_test_processed)
